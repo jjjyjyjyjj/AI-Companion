@@ -7,6 +7,11 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+# Gemini
+from google import genai
+from google.genai import types
+
 from app.routes.sessions import router as sessions_router
 # from app.routes.live import router as live_router
 
@@ -14,10 +19,6 @@ from app.routes.sessions import router as sessions_router
 app = FastAPI(title="AI Companion API")
 app.include_router(sessions_router)
 from app.services.music import music, MUSIC_URLS
-
-# Gemini
-from google import genai
-from google.genai import types
 
 # Gemini client
 client = genai.Client(api_key=Settings.GEMINI_API_KEY)
