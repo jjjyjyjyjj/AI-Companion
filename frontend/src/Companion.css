@@ -44,6 +44,27 @@
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
+.companion-face.mad {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+.companion-face.neutral {
+  background: linear-gradient(135deg, #a8c0ff 0%, #a8c0ff 100%);
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  75% {
+    transform: translateX(5px) rotate(2deg);
+  }
+}
+
 .companion-face.encouraging {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }

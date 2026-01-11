@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './Companion.css';
 
 // Companion component props
-function Companion({ message, focusScore, isFocused, isBreak }) {
+function Companion({ message, focusScore, isFocused, isBreak, isSessionActive }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const synthRef = useRef(null); // Reference to the Web Speech API
 
@@ -35,17 +35,40 @@ function Companion({ message, focusScore, isFocused, isBreak }) {
     }
   }, [message]);
 
-  // Get the companion's emotion based on the focus score and whether they are focused
+  // Get the companion's emotion based on the focus state
   const getCompanionEmotion = () => {
     // Show sleeping state during breaks
-    if (isBreak) return 'sleeping';
-    if (focusScore >= 80) return 'happy';
-    if (focusScore >= 50) return 'neutral';
-    if (isFocused) return 'encouraging'; 
-    return 'concerned'; // Default emotion if no other condition is met
+    if (isBreak) {
+      return 'sleeping';
+    }
+    
+    // If session is inactive (not running), always show neutral
+    if (!isSessionActive) {
+      return 'neutral';
+    }
+    
+    // If session is active (pomodoro running), show happy when focused, mad when not focused
+    if (isFocused === true) {
+      return 'happy';
+    }
+    
+    // Session is active but not focused
+    return 'mad';
   };
 
   const emotion = getCompanionEmotion();
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('Companion emotion state:', { 
+      emotion, 
+      isFocused, 
+      isBreak, 
+      isSessionActive,
+      focusScore,
+      calculatedEmotion: emotion
+    });
+  }, [emotion, isFocused, isBreak, isSessionActive, focusScore]);
 
   return (
     <div className="companion-container-simple">
@@ -54,9 +77,8 @@ function Companion({ message, focusScore, isFocused, isBreak }) {
           <span className="companion-emoji">
             {emotion === 'sleeping' && '😴'}
             {emotion === 'happy' && '😊'}
+            {emotion === 'mad' && '😠'}
             {emotion === 'neutral' && '😐'}
-            {emotion === 'encouraging' && '💪'}
-            {emotion === 'concerned' && '🤔'}
           </span>
         </div>
         {isSpeaking && <div className="speaking-indicator">🔊</div>}

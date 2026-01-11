@@ -52,8 +52,35 @@ function Pomodoro({ state, onStart, onStop, onReset }) {
         </svg>
         <div className="timer-text">
           <span className="timer-value">{formatTime(displayTime)}</span>
+          <div className="phase-label-small">{getPhaseLabel()}</div>
         </div>
       </div>
+      {!state.isRunning && (
+        <div className="pomodoro-controls">
+          <button 
+            className="pomodoro-btn start-btn" 
+            onClick={onStart}
+          >
+            🎯 Start Session
+          </button>
+        </div>
+      )}
+      {state.isRunning && (
+        <div className="pomodoro-controls">
+          <button 
+            className="pomodoro-btn stop-btn" 
+            onClick={onStop}
+          >
+            ⏸ Stop
+          </button>
+          <button 
+            className="pomodoro-btn reset-btn" 
+            onClick={onReset}
+          >
+            ↻ Reset
+          </button>
+        </div>
+      )}
     </div>
   );
 }

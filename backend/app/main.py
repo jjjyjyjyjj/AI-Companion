@@ -1,9 +1,10 @@
 import os
 import asyncio
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
+from datetime import datetime, time as dt_time
 
 from app.config import Settings
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -12,8 +13,21 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 
-# Gemini client
-client = genai.Client(api_key=Settings.GEMINI_API_KEY)
+# Database
+from app.db.conn import db_session
+from app.db.repository import SessionRepository, PlanRepository
+from app.models import SessionStatus
+
+# Services
+from app.services.music import music_service
+from app.services.attention_detector_service import attention_detector_service
+
+# Gemini client (optional - only initialize if API key is available)
+try:
+    client = genai.Client(api_key=Settings.GEMINI_API_KEY) if Settings.GEMINI_API_KEY else None
+except Exception as e:
+    print(f"Warning: Could not initialize Gemini client: {e}")
+    client = None
 
 app = FastAPI(title="AI Companion API")
 # CORS
@@ -30,6 +44,19 @@ class ChatRequest(BaseModel):
     message: str
     system_prompt: str | None = None
     model: str = "gemini-2.5-flash"
+
+class SessionStartRequest(BaseModel):
+    subject: str
+    duration: int
+    audio_type: str
+    study_guide: Optional[dict] = None
+    pomodoro_sessions: Optional[list] = None
+    playlist_provider: Optional[str] = None
+
+class MusicStartRequest(BaseModel):
+    audio_type: str
+    session_id: Optional[str] = None
+    duration_minutes: Optional[int] = None
 
 def sse(data: str) -> str:
     return f"data: {data}\n\n"
@@ -82,3 +109,123 @@ async def chat_stream(req: ChatRequest, authorization: str | None = Header(defau
             await asyncio.sleep(0)  # cooperative yield
         yield sse("[DONE]")
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.post("/api/session/start")
+async def start_session(req: SessionStartRequest, db = Depends(db_session)):
+    """Start a new study session and store session data"""
+    try:
+        # Create session in database
+        session = SessionRepository.create(
+            db=db,
+            session_topic=req.subject,
+            status=SessionStatus.ACTIVE
+        )
+        
+        # Create plan if study guide is provided
+        if req.study_guide:
+            plan_text = f"Study plan for {req.subject}: {req.duration} minutes"
+            if req.pomodoro_sessions:
+                pomodoro_pattern = ", ".join([f"Session {s.get('id', i+1)}: {s.get('task', '')}" 
+                                             for i, s in enumerate(req.pomodoro_sessions)])
+            else:
+                pomodoro_pattern = f"{req.duration} minute session"
+            
+            PlanRepository.create(
+                db=db,
+                session_id=session.session_id,
+                pomodoro_pattern=pomodoro_pattern,
+                qualitative_guide=str(req.study_guide)
+            )
+        
+        db.commit()
+        
+        return {
+            "session_id": str(session.session_id),
+            "status": "active",
+            "subject": req.subject,
+            "duration": req.duration,
+            "audio_type": req.audio_type
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to start session: {str(e)}")
+
+@app.post("/api/music/start")
+async def start_music(req: MusicStartRequest):
+    """Start playing music based on audio type"""
+    try:
+        result = music_service.start_music(
+            audio_type=req.audio_type,
+            duration_minutes=req.duration_minutes
+        )
+        
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start music: {str(e)}")
+
+@app.post("/api/music/pause")
+async def pause_music():
+    """Pause currently playing music"""
+    try:
+        result = music_service.pause_music()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to pause music: {str(e)}")
+
+@app.post("/api/music/resume")
+async def resume_music():
+    """Resume paused music"""
+    try:
+        result = music_service.resume_music()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to resume music: {str(e)}")
+
+@app.post("/api/music/stop")
+async def stop_music():
+    """Stop currently playing music"""
+    try:
+        result = music_service.stop_music()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to stop music: {str(e)}")
+
+@app.get("/api/music/status")
+async def get_music_status():
+    """Get current music playback status"""
+    return music_service.get_status()
+
+@app.post("/api/attention/start")
+async def start_attention_detection():
+    """Start attention detection"""
+    try:
+        success = attention_detector_service.start_detection()
+        if success:
+            return {"status": "success", "message": "Attention detection started"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to start attention detection")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start attention detection: {str(e)}")
+
+@app.post("/api/attention/stop")
+async def stop_attention_detection():
+    """Stop attention detection"""
+    try:
+        attention_detector_service.stop_detection()
+        return {"status": "success", "message": "Attention detection stopped"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to stop attention detection: {str(e)}")
+
+@app.get("/api/attention/status")
+async def get_attention_status():
+    """Get current attention detection status"""
+    try:
+        status = attention_detector_service.get_status()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get attention status: {str(e)}")

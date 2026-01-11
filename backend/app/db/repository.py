@@ -122,7 +122,7 @@ class PomodoroCycleRepository:
         current = db.query(PomodoroCycle).filter(PomodoroCycle.cycle_id == cycle_id).first()
         if current:
             current.completed = True
-            current.ends_at = datetime.utcnow()
+            current.ended_at = datetime.utcnow()
         
         # Start next
         next_cycle = PomodoroCycleRepository.create(db, session_id, next_phase, next_minutes)
