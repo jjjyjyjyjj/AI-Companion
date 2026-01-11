@@ -7,8 +7,10 @@ import threading
 import time
 import requests
 
+
 class AttentionDetector:
     def __init__(self, root):
+        self.saved_puffle = None
         self.root = root
         self.root.title("Attention Detector")
         self.root.geometry("800x600")
@@ -32,6 +34,10 @@ class AttentionDetector:
         self.last_print_time = 0
         self.detection_start_time = 0
         self.last_frame_time = 0
+
+
+        self.api_base = "http://localhost:8000"  # FastAPI backend URL
+        self.current_session_id = None
         
         # OpenCV classifiers
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
