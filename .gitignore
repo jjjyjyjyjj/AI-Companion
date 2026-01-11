@@ -9,6 +9,8 @@ backend/venv/
 backend/.env
 backend/__pycache__/
 backend/*.pyc
+backend/google_assistant/credentials.json
+backend/google_assistant/google_assistant_credentials.json
 
 # OS
 .DS_Store
