@@ -2,13 +2,43 @@
 Test script to create sample data and test visualizations
 """
 from app.db.conn import db_session
-from app.models import Session, SessionStatus, Client
+from app.models import Session, SessionStatus, Client, TelemetryEvent
 from datetime import datetime, timedelta
 import uuid
 from app.routes.bootstrap import LOCAL_CLIENT_ID
 from app.db.repository import ClientRepository
 
-# def create_test_data():
+def clear_database():
+    """Clear all test data from database"""
+    print("\n" + "="*60)
+    print("DATABASE CLEANUP")
+    print("="*60)
+    
+    response = input("\n⚠️  Do you want to clear ALL data from the database? (yes/no): ")
+    
+    if response.lower() != 'yes':
+        print("Skipping database cleanup...")
+        return
+    
+    with db_session() as db:
+        print("\nClearing database...")
+        
+        # Delete in order (respecting foreign key constraints)
+        # 1. Delete telemetry events first
+        telemetry_count = db.query(TelemetryEvent).delete()
+        print(f"  ✅ Deleted {telemetry_count} telemetry events")
+        
+        # 2. Delete sessions
+        session_count = db.query(Session).delete()
+        print(f"  ✅ Deleted {session_count} sessions")
+        
+        # 3. Delete clients
+        client_count = db.query(Client).delete()
+        print(f"  ✅ Deleted {client_count} clients")
+        
+        db.commit()
+        print("\n✅ Database cleared successfully!")
+
 def create_test_data():
     print("Creating test data...")
 
@@ -20,7 +50,7 @@ def create_test_data():
         db.flush()
 
         print(f"✅ Client ready: {client.client_name} (ID: {client.client_id})")
-        
+
         # STEP 2: Create test sessions
         test_sessions = [
             {"topic": "Math Homework",       "focused": 1200, "distracted": 300, "avg_attention": 85.5},
@@ -67,6 +97,8 @@ def test_data_retrieval():
         sessions = db.query(Session).order_by(Session.created_at.desc()).limit(5).all()
 
         print(f"\nFound {len(sessions)} sessions:")
+        sessions_id = []
+        
         for s in sessions:
             print(f"\n  📊 {s.session_topic}")
             print(f"     Focused: {s.seconds_focused}s ({s.seconds_focused//60}m)")
@@ -74,7 +106,7 @@ def test_data_retrieval():
             print(f"     Avg Attention: {s.avg_attention}%")
             print(f"     Session ID: {s.session_id}")
 
-        return sessions
+        return sessions_id
 
 def test_visualization_generation(session_id):
     """Test generating a visualization"""
@@ -170,6 +202,8 @@ if __name__ == "__main__":
     print("="*60)
     print("VISUALIZATION TESTING SCRIPT")
     print("="*60)
+    # Clear database first
+    clear_database()
     
     # Step 1: Create test data
     sessions = create_test_data()
@@ -183,8 +217,8 @@ if __name__ == "__main__":
     
     # Step 3: Test visualization generation
     if retrieved_sessions:
-        test_visualization_generation(retrieved_sessions[0].session_id)
-    
+        test_visualization_generation(retrieved_sessions[0])
+
     # Step 4: Cleanup
     cleanup_test_data()
     
