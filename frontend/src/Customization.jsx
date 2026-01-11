@@ -40,25 +40,11 @@ function Customization({ onClose }) {
     setFirstClick(false);
   };
 
-  //changed
-  const handleSave = async () => {
-  const avatarData = {
-    puffleId: selected.id,
-    hue
+  const handleSave = () => {
+    // Save selected puffle and hue
+    setSavedPuffle({ ...selected, hue });
+    setStep('choose'); // return to chooser
   };
-
-  await fetch("http://localhost:5000/avatar", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(avatarData)
-  });
-
-  setSavedPuffle({ ...selected, hue });
-  setStep("choose");
-};
-
 
   return (
     <div className="customization-page">
