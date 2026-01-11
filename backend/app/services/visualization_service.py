@@ -91,13 +91,13 @@ class VisualizationService:
         return f"data:image/png;base64,{img_base64}"
     
     @staticmethod
-    def generate_focus_distribution_chart(focused_seconds: int, distracted_seconds: int) -> str:
+    def generate_focus_distribution_chart(seconds_focused: int, seconds_distracted: int) -> str:
         """
         Generate pie chart showing focus vs distraction distribution
         """
         fig = go.Figure(data=[go.Pie(
             labels=['Focused', 'Distracted'],
-            values=[focused_seconds, distracted_seconds],
+            values=[seconds_focused, seconds_distracted],
             hole=0.4,
             marker=dict(colors=['#4CAF50', '#F44336'])
         )])

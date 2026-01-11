@@ -15,7 +15,7 @@ from google.genai import types
 
 # Database
 from app.db.conn import db_session
-from app.db.repository import SessionRepository, PlanRepository
+from app.db.repository import SessionRepository
 from app.models import SessionStatus
 
 # Services
@@ -95,7 +95,6 @@ def echo(data: dict):
     return {"received": data}
 
 #client
-
 @app.post("/chat/stream")
 async def chat_stream(req: ChatRequest, authorization: str | None = Header(default=None)):
     # TODO: replace with JWT verification
@@ -122,20 +121,20 @@ async def start_session(req: SessionStartRequest, db = Depends(db_session)):
         )
         
         # Create plan if study guide is provided
-        if req.study_guide:
-            plan_text = f"Study plan for {req.subject}: {req.duration} minutes"
-            if req.pomodoro_sessions:
-                pomodoro_pattern = ", ".join([f"Session {s.get('id', i+1)}: {s.get('task', '')}" 
-                                             for i, s in enumerate(req.pomodoro_sessions)])
-            else:
-                pomodoro_pattern = f"{req.duration} minute session"
+        # if req.study_guide:
+        #     plan_text = f"Study plan for {req.subject}: {req.duration} minutes"
+        #     if req.pomodoro_sessions:
+        #         pomodoro_pattern = ", ".join([f"Session {s.get('id', i+1)}: {s.get('task', '')}" 
+        #                                      for i, s in enumerate(req.pomodoro_sessions)])
+        #     else:
+        #         pomodoro_pattern = f"{req.duration} minute session"
             
-            PlanRepository.create(
-                db=db,
-                session_id=session.session_id,
-                pomodoro_pattern=pomodoro_pattern,
-                qualitative_guide=str(req.study_guide)
-            )
+            # PlanRepository.create(
+            #     db=db,
+            #     session_id=session.session_id,
+            #     pomodoro_pattern=pomodoro_pattern,
+            #     qualitative_guide=str(req.study_guide)
+            # )
         
         db.commit()
         

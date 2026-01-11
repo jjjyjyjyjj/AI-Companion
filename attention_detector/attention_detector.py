@@ -5,6 +5,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import threading
 import time
+import requests
 
 class AttentionDetector:
     def __init__(self, root):
@@ -323,6 +324,35 @@ class AttentionDetector:
             self.stats_thread = threading.Thread(target=self.print_stats_periodically, daemon=True)
             self.stats_thread.start()
     
+    def send_attention_summary(self):
+        """Send attention summary to backend"""
+        if not self.current_session_id:
+            print("❌ No session ID, cannot send summary")
+            return
+        
+        avg_attention = (
+            sum(self.attention_percentages) / len(self.attention_percentages)
+            if self.attention_percentages else 0.0
+        )
+
+        payload = {
+            "seconds_focused": int(self.focused_seconds),        
+            "seconds_distracted": int(self.distracted_seconds),  
+            "avg_attention": float(avg_attention),
+            "samples_count": int(len(self.attention_percentages)),
+        }
+
+        try:
+            r = requests.post(
+                f"{self.api_base}/sessions/attention-summary",
+                json=payload,
+                timeout=5
+            )
+            r.raise_for_status()
+            print("✅ Sent session summary to backend:", r.json())
+        except Exception as e:
+            print(f"❌ Failed to send session summary: {e}")
+
     def stop_detection(self):
         """Stop the attention detection"""
         self.running = False
