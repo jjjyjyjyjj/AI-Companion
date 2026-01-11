@@ -105,6 +105,7 @@ def test_data_retrieval():
             print(f"     Distracted: {s.seconds_distracted}s ({s.seconds_distracted//60}m)")
             print(f"     Avg Attention: {s.avg_attention}%")
             print(f"     Session ID: {s.session_id}")
+            sessions_id.append(s.session_id)
 
         return sessions_id
 
@@ -147,7 +148,7 @@ def test_visualization_generation(session_id):
                 {
                     "session_topic": s.session_topic,
                     "avg_attention": s.avg_attention,
-                    "focused_seconds": s.focused_seconds
+                    "focused_seconds": s.seconds_focused
                 }
                 for s in sessions
             ]
