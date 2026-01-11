@@ -12,7 +12,10 @@ class AttentionDetector:
         self.root = root
         self.root.title("Attention Detector")
         self.root.geometry("800x600")
-        
+        self.api_base = "http://localhost:8000"  # Backend API base URL
+        self.current_session_id = None
+        self.last_live_send = 0.0
+
         # State variables
         self.running = False
         self.cap = None
@@ -232,6 +235,19 @@ class AttentionDetector:
                 # Update status
                 self.attention_status = "Paying Attention" if is_attentive else "Not Paying Attention"
                 self.attention_percentage = min(100, max(0, int(score)))
+                now = time.time()
+                # if self.current_session_id and (now - self.last_live_send) >= 1.0:
+                #     self.last_live_send = now
+                #     payload = {
+                #         "session_id": self.current_session_id,
+                #         "state": "focused" if is_attentive else "distracted",
+                #         "attention": int(self.attention_percentage),
+                #         "ts": now,
+                #     }
+                #     try:
+                #         requests.post(f"{self.api_base}/live/update", json=payload, timeout=0.3)
+                #     except Exception:
+                #         pass
                 
                 # Track time spent focused vs distracted
                 current_time = time.time()
@@ -342,19 +358,17 @@ class AttentionDetector:
         if not self.current_session_id:
             print("No session ID, cannot send summary")
             return
-        
         avg_attention = (
             sum(self.attention_percentages) / len(self.attention_percentages)
             if self.attention_percentages else 0.0
         )
-
         payload = {
+                "session_id": self.current_session_id,
                 "focused_seconds": int(self.focused_seconds),
                 "distracted_seconds": int(self.distracted_seconds),
                 "avg_attention": float(avg_attention),
                 "samples_count": int(len(self.attention_percentages)),
             }
-
         try:
             r = requests.post(f"{self.api_base}/sessions/attention-summary", json=payload, timeout=5)
             r.raise_for_status()
@@ -396,7 +410,8 @@ class AttentionDetector:
             print("="*60)
             print("No data collected.\n")
 
-        self.send_session_summary()
+        if self.current_session_id:
+            self.send_attention_summary()
 
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
@@ -422,7 +437,7 @@ class AttentionDetector:
 
 def main():
     root = tk.Tk()
-    app = AttentionDetector(root, api_base="http://localhost:8000")
+    app = AttentionDetector(root)
     app.run()
 
 if __name__ == "__main__":

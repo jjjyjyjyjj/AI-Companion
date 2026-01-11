@@ -2,15 +2,15 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas import SessionAttentionSummaryRequest, StartSessionRequest
 from app.db.conn import db_session
-from app.repository import SessionRepository, TelemetryRepository
-from app.routes.bootstrap import LOCAL_CLIENT_ID
+from app.db.repository import SessionRepository, TelemetryRepository
+import app.routes.bootstrap as bootstrap
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 @router.post("/start", status_code=201)
 def start_session(payload: StartSessionRequest):
     with db_session() as db:
-        session = SessionRepository.create(db, client_id=LOCAL_CLIENT_ID, session_topic=payload.session_topic)
+        session = SessionRepository.create(db, client_id=bootstrap.LOCAL_CLIENT_ID, session_topic=payload.session_topic)
         TelemetryRepository.create(db, session_id=session.session_id)
         return {
             "session_id": str(session.session_id),
@@ -18,7 +18,7 @@ def start_session(payload: StartSessionRequest):
             "status": session.status.value,
             "created_at": session.created_at.isoformat() if session.created_at else None}
 
-@router.post("/current", status_code=200)
+@router.get("/current", status_code=200)
 def get_current_session():
     with db_session() as db:
         current = SessionRepository.get_current_active(db)
@@ -30,11 +30,12 @@ def get_current_session():
 @router.post("/attention-summary", status_code=200)
 def save_attention_summary(payload: SessionAttentionSummaryRequest):
     with db_session() as db:
-        current = SessionRepository.get_current_active(db)
+        current = SessionRepository.get_by_id(db, session_id=payload.session_id)
 
         if not current:
             raise HTTPException(status_code=404, detail="No active session to attach summary")
-
+        
+        current.focused_seconds = payload.focused_seconds
         current.distracted_seconds = payload.distracted_seconds
         current.avg_attention = payload.avg_attention
         current.samples_count = payload.samples_count

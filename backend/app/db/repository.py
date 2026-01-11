@@ -1,5 +1,4 @@
 # Repository for database operations
-
 from typing import Any, Dict, List, Optional
 from datetime import datetime, time as dt_time
 from sqlalchemy.orm import Session
@@ -38,12 +37,12 @@ class SessionRepository:
         db.flush()
         return session
     
-    @staticmethod
-    def get_current_active(db: Session) -> Optional[SessionModel]:
-        return db.query(SessionModel)\
-                 .filter(SessionModel.status == SessionStatus.ACTIVE)\
-                 .order_by(desc(SessionModel.created_at))\
-                 .first()
+    # @staticmethod
+    # def get_current_active(db: Session) -> Optional[SessionModel]:
+    #     return db.query(SessionModel)\
+    #              .filter(SessionModel.status == SessionStatus.ACTIVE)\
+    #              .order_by(desc(SessionModel.created_at))\
+    #              .first()
 
     @staticmethod
     def get_by_id(db: Session, session_id: uuid.UUID) -> Optional[SessionModel]:

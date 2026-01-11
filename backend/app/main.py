@@ -5,6 +5,12 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from app.routes.sessions import router as sessions_router
+from app.routes.live import router as live_router
+
+#include sessions router
+app = FastAPI(title="AI Companion API")
+app.include_router(sessions_router)
 
 # Gemini
 from google import genai
@@ -12,7 +18,6 @@ from google.genai import types
 
 # Gemini client
 client = genai.Client(api_key=Settings.GEMINI_API_KEY)
-app = FastAPI(title="AI Companion API")
 
 # CORS
 app.add_middleware(
@@ -66,8 +71,7 @@ def health():
 def echo(data: dict):
     return {"received": data}
 
-#client
-
+#client endpoint for streaming chat
 @app.post("/chat/stream")
 async def chat_stream(req: ChatRequest, authorization: str | None = Header(default=None)):
     # TODO: replace with JWT verification
