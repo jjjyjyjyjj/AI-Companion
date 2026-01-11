@@ -6,8 +6,10 @@ from PIL import Image, ImageTk
 import threading
 import time
 
+
 class AttentionDetector:
     def __init__(self, root):
+        self.saved_puffle = None
         self.root = root
         self.root.title("Attention Detector")
         self.root.geometry("800x600")
