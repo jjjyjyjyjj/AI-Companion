@@ -5,13 +5,19 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import threading
 import time
+import requests
+
 
 class AttentionDetector:
     def __init__(self, root):
+        self.saved_puffle = None
         self.root = root
         self.root.title("Attention Detector")
         self.root.geometry("800x600")
-        
+        self.api_base = "http://localhost:8000"  # Backend API base URL
+        self.current_session_id = None
+        self.last_live_send = 0.0
+
         # State variables
         self.running = False
         self.cap = None
@@ -28,6 +34,10 @@ class AttentionDetector:
         self.last_print_time = 0
         self.detection_start_time = 0
         self.last_frame_time = 0
+
+
+        self.api_base = "http://localhost:8000"  # FastAPI backend URL
+        self.current_session_id = None
         
         # OpenCV classifiers
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -231,6 +241,19 @@ class AttentionDetector:
                 # Update status
                 self.attention_status = "Paying Attention" if is_attentive else "Not Paying Attention"
                 self.attention_percentage = min(100, max(0, int(score)))
+                now = time.time()
+                # if self.current_session_id and (now - self.last_live_send) >= 1.0:
+                #     self.last_live_send = now
+                #     payload = {
+                #         "session_id": self.current_session_id,
+                #         "state": "focused" if is_attentive else "distracted",
+                #         "attention": int(self.attention_percentage),
+                #         "ts": now,
+                #     }
+                #     try:
+                #         requests.post(f"{self.api_base}/live/update", json=payload, timeout=0.3)
+                #     except Exception:
+                #         pass
                 
                 # Track time spent focused vs distracted
                 current_time = time.time()
@@ -302,6 +325,20 @@ class AttentionDetector:
     def start_detection(self):
         """Start the attention detection"""
         if not self.running:
+            try:
+                response = requests.post(
+                    f"{self.api_base}/sessions/start",
+                    json={"session_topic": "Attention Detection Session"},
+                    timeout=5
+                )
+                response.raise_for_status()
+                session_data = response.json()
+                self.current_session_id = session_data["session_id"]
+                print(f"Created session: {self.current_session_id}")
+            except Exception as e:
+                print(f"Failed to create session: {e}")
+                return
+                
             # Reset statistics
             self.focused_seconds = 0.0
             self.distracted_seconds = 0.0
@@ -322,7 +359,29 @@ class AttentionDetector:
             # Start stats printing thread
             self.stats_thread = threading.Thread(target=self.print_stats_periodically, daemon=True)
             self.stats_thread.start()
-    
+        
+    def send_attention_summary(self):
+        if not self.current_session_id:
+            print("No session ID, cannot send summary")
+            return
+        avg_attention = (
+            sum(self.attention_percentages) / len(self.attention_percentages)
+            if self.attention_percentages else 0.0
+        )
+        payload = {
+                "session_id": self.current_session_id,
+                "focused_seconds": int(self.focused_seconds),
+                "distracted_seconds": int(self.distracted_seconds),
+                "avg_attention": float(avg_attention),
+                "samples_count": int(len(self.attention_percentages)),
+            }
+        try:
+            r = requests.post(f"{self.api_base}/sessions/attention-summary", json=payload, timeout=5)
+            r.raise_for_status()
+            print("Sent session summary to backend:", r.json())
+        except Exception as e:
+            print("Failed to send session summary:", e)
+
     def stop_detection(self):
         """Stop the attention detection"""
         self.running = False
@@ -356,13 +415,16 @@ class AttentionDetector:
             print("ATTENTION DETECTION STOPPED")
             print("="*60)
             print("No data collected.\n")
-        
+
+        if self.current_session_id:
+            self.send_attention_summary()
+
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.status_label.config(text="Status: Stopped", foreground="black")
         self.percentage_label.config(text="Attention: 0%")
         self.progress_bar['value'] = 0
-    
+
     def run(self):
         """Start the application"""
         # Start video update thread
